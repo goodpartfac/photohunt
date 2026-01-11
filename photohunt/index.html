@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมจับผิดภาพ - โรงเรียนบ้านใหม่วัฒนา</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&family=Mali:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #FFC107;
+            --bg-color: #E0F7FA;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Mali', cursive; /* ฟอนต์ลายมือเด็กๆ อ่านง่าย */
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            color: var(--text-color);
+            user-select: none; /* ป้องกันการเลือกข้อความ */
+        }
+
+        header {
+            background-color: #fff;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-bottom: 5px solid var(--primary-color);
+        }
+
+        h1 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+        }
+
+        .sub-header {
+            font-size: 1rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .teacher-name {
+            color: #E91E63;
+            font-weight: bold;
+        }
+
+        #game-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .images-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            position: relative;
+        }
+
+        /* คอนเทนเนอร์สำหรับรูปภาพ */
+        .img-box {
+            position: relative;
+            border: 5px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        .img-box img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            /* ปรับขนาดรูปให้พอดีหน้าจอ */
+            width: 500px; 
+        }
+
+        /* สำหรับหน้าจอมือถือ ให้เรียงลงมา */
+        @media (max-width: 768px) {
+            .img-box img {
+                width: 100%;
+            }
+        }
+
+        /* วงกลมเมื่อเจอจุดที่ต่าง */
+        .circle-mark {
+            position: absolute;
+            border: 3px solid #FF0000;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            pointer-events: none; /* ให้คลิกทะลุได้ */
+            transform: translate(-50%, -50%);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { transform: translate(-50%, -50%) scale(0); }
+            to { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* หน้าต่างแสดงผล (Modal) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            animation: slideDown 0.5s;
+            max-width: 80%;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Mali', cursive;
+            margin-top: 15px;
+            box-shadow: 0 4px #2E7D32;
+            transition: all 0.1s;
+        }
+
+        button:active {
+            box-shadow: 0 2px #2E7D32;
+            transform: translateY(2px);
+        }
+
+        /* ป้ายโลโก้โรงเรียน (สมมติ) */
+        .school-logo {
+            width: 10px;
+            height: 10px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+        
+        /* เครื่องมือช่วยหาพิกัด (ปิดไว้เมื่อใช้งานจริง) */
+        #debug-coords {
+            display: none; /* เปลี่ยนเป็น block เพื่อดูพิกัด */
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            padding: 5px;
+            font-size: 12px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="logo.png" alt="Logo" class="logo">
+        <div style="display:inline-block; vertical-align: middle; text-align: left;">
+            <h1>โรงเรียนบ้านใหม่วัฒนา</h1>
+            <div class="sub-header">วิชาคอมพิวเตอร์ | สอนโดย: <span class="teacher-name">ครูขันทอง โพธิ์เตี้ย</span></div>
+        </div>
+    </header>
+
+    <div id="game-container">
+        <div class="status-bar">
+            <div>ด่านที่: <span id="level-display">1</span>/5</div>
+            <div>หาเจอแล้ว: <span id="score-display">0</span>/<span id="target-display">3</span> จุด</div>
+        </div>
+
+        <div class="images-wrapper">
+            <div class="img-box">
+                <img id="img-a" src="" alt="Image A">
+                <div id="overlay-a"></div> </div>
+            <div class="img-box" id="click-area">
+                <img id="img-b" src="" alt="Image B">
+                <div id="overlay-b"></div> </div>
+        </div>
+        
+        <p style="color: #777; font-size: 0.9rem; margin-top:20px;">
+            คำแนะนำ: น้องๆ ช่วยหาจุดที่แตกต่างกันในรูปทางขวามือ (หรือด้านล่าง) แล้วแตะเลย!
+        </p>
+    </div>
+
+    <div id="win-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: var(--primary-color);">เก่งมากครับ! 🎉</h2>
+            <p>ผ่านด่านแล้ว ไปด่านต่อไปกันเลย</p>
+            <button onclick="nextLevel()">ไปด่านต่อไป ▶</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: #FF9800;">สุดยอดไปเลย! 🏆</h2>
+            <p>น้องๆ หาเจอครบทุกด่านแล้ว</p>
+            <p>วิชาคอมพิวเตอร์ โรงเรียนบ้านใหม่วัฒนา</p>
+            <button onclick="restartGame()">เล่นใหม่อีกครั้ง ↺</button>
+        </div>
+    </div>
+    
+    <div id="debug-coords">X: 0, Y: 0</div>
+
+    <script>
+        // --- การตั้งค่าเกม ---
+        
+        // รายชื่อไฟล์ภาพและตำแหน่งจุดที่แตกต่าง (X, Y คือพิกัด, R คือรัศมีความกว้างของจุด)
+        // หมายเหตุ: พิกัดเหล่านี้เป็นค่าประมาณ คุณครูสามารถใช้ "โหมดแก้ปัญหา" ด้านล่างเพื่อหาพิกัดที่แม่นยำได้
+        // พิกัดอ้างอิงจากขนาดภาพต้นฉบับ (สมมติ Width: 1024px)
+        
+        const levels = [
+            {
+                imgA: 'level1_a.png',
+                imgB: 'level1_b.png',
+                differences: [
+                    { x: 783, y: 1206, r: 50 }, // ลายปกเสื้อผู้หญิง (ขวา)
+                    { x: 340, y: 338, r: 50 }, // ยอดกระถางต้นไม้
+                    { x: 1588, y: 199, r: 50 }  // วงกลมสีขาวบนลูกกรงหน้าต่างหายไป
+                ]
+            },
+            {
+                imgA: 'level2_a.png',
+                imgB: 'level2_b.png',
+                differences: [
+                    { x: 1453, y: 1434, r: 50 }, // เคส CPU เปลี่ยนเป็นสีเหลือง
+                    { x: 496, y: 699, r: 50 }, // จุดดำใต้คางเด็กผู้ชายหายไป
+                    { x: 1450, y: 484, r: 50 }  // หน้าจอคอมขวามือวงกลมในจอเปลี่ยนเป็นสีขาว
+                ]
+            },
+            {
+                imgA: 'level3_a.png',
+                imgB: 'level3_b.png',
+                differences: [
+                    { x: 434, y: 908, r: 50 }, // มุมโต๊ะคอมฝั่งเด็กหญิงเส้นใหญ่ขึ้น
+                    { x: 2014, y: 1244, r: 50 }, // ถุงเท้าผู้ชายขวาสีดำเล็กลง
+                    { x: 1248, y: 110, r: 50 }   // นาฬิกาขยับมาทางซ้าย
+                ]
+            },
+            {
+                imgA: 'level4_a.png',
+                imgB: 'level4_b.png',
+                differences: [
+                    { x: 335, y: 460, r: 50 }, // จอคอมเตี้ยกว่าตัวอื่น
+                    { x: 1263, y: 1256, r: 50 }, // ชายเสื้อเด็กผู้ชายไม่ผ่า
+                    { x: 873, y: 446, r: 50 }   // แฟ้มมี3แฟ้ม
+                ]
+            },
+            {
+                imgA: 'level5_a.png',
+                imgB: 'level5_b.png',
+                differences: [
+                    { x: 547, y: 992, r: 50 }, // พนักพิงเด็กผู้หญิงไม่มีรู
+                    { x: 1206, y: 252, r: 50 }, // สายดึกพัดลมยาวขึ้น
+                    { x: 916, y: 728, r: 50 }  // ยางรัดผมเด็กผู้หญิงหาย
+                ]
+            }
+        ];
+
+        // --- ตัวแปรระบบ ---
+        let currentLevel = 0;
+        let foundCount = 0;
+        let foundList = []; // เก็บ index ของจุดที่เจอแล้ว
+        const targetCount = 3; // จำนวนจุดที่ต้องหาในแต่ละด่าน
+        
+        // --- ตั้งค่า Debug Mode (เปลี่ยนเป็น true ถ้าต้องการดูพิกัด X,Y ตอนคลิกเพื่อแก้โค้ด) ---
+        const debugMode = false; 
+
+        // Elements
+        const imgA = document.getElementById('img-a');
+        const imgB = document.getElementById('img-b');
+        const overlayA = document.getElementById('overlay-a');
+        const overlayB = document.getElementById('overlay-b');
+        const clickArea = document.getElementById('click-area');
+        
+        function loadLevel(levelIndex) {
+            currentLevel = levelIndex;
+            foundCount = 0;
+            foundList = [];
+            
+            // อัปเดต UI
+            document.getElementById('level-display').innerText = currentLevel + 1;
+            document.getElementById('score-display').innerText = 0;
+            document.getElementById('target-display').innerText = targetCount;
+            
+            // ล้างวงกลมเก่า
+            overlayA.innerHTML = '';
+            overlayB.innerHTML = '';
+            
+            // โหลดภาพ
+            imgA.src = levels[currentLevel].imgA;
+            imgB.src = levels[currentLevel].imgB;
+        }
+
+        function checkDifference(e) {
+            // คำนวณตำแหน่งที่คลิก เทียบกับขนาดจริงของรูปภาพ (Natural Size)
+            const rect = imgB.getBoundingClientRect();
+            
+            // อัตราส่วนการย่อขยาย (เผื่อเล่นในมือถือ)
+            const scaleX = imgB.naturalWidth / rect.width;
+            const scaleY = imgB.naturalHeight / rect.height;
+
+            // ตำแหน่งคลิกจริงในภาพต้นฉบับ
+            const clickX = (e.clientX - rect.left) * scaleX;
+            const clickY = (e.clientY - rect.top) * scaleY;
+
+            if(debugMode) {
+                document.getElementById('debug-coords').style.display = 'block';
+                document.getElementById('debug-coords').innerText = `X: ${Math.round(clickX)}, Y: ${Math.round(clickY)}`;
+                console.log(`X: ${Math.round(clickX)}, Y: ${Math.round(clickY)}`);
+            }
+
+            // ตรวจสอบกับรายการจุดจับผิด
+            const levelData = levels[currentLevel];
+            let isFound = false;
+
+            levelData.differences.forEach((diff, index) => {
+                // ถ้าจุดนี้ยังไม่เคยเจอ
+                if (!foundList.includes(index)) {
+                    // คำนวณระยะห่าง (Pythagoras)
+                    const dist = Math.sqrt(Math.pow(clickX - diff.x, 2) + Math.pow(clickY - diff.y, 2));
+                    
+                    if (dist < diff.r) {
+                        // เจอแล้ว!
+                        foundDifference(diff, index, rect.width / imgB.naturalWidth);
+                        isFound = true;
+                    }
+                }
+            });
+        }
+
+        function foundDifference(diff, index, currentScale) {
+            foundCount++;
+            foundList.push(index);
+            document.getElementById('score-display').innerText = foundCount;
+
+            // สร้างวงกลมแดง
+            createCircle(diff, overlayA, currentScale);
+            createCircle(diff, overlayB, currentScale);
+
+            // เล่นเสียง (ถ้ามีไฟล์เสียงใส่ตรงนี้ได้)
+            // playSound('ping.mp3');
+
+            // เช็คว่าครบหรือยัง
+            if (foundCount >= targetCount) {
+                setTimeout(() => {
+                    if (currentLevel < levels.length - 1) {
+                        document.getElementById('win-modal').style.display = 'flex';
+                    } else {
+                        document.getElementById('end-modal').style.display = 'flex';
+                    }
+                }, 500);
+            }
+        }
+
+        function createCircle(diff, container, scale) {
+            const circle = document.createElement('div');
+            circle.className = 'circle-mark';
+            // ปรับขนาดและตำแหน่งวงกลมตามหน้าจอจริง
+            circle.style.width = (diff.r * 2 * scale) + 'px';
+            circle.style.height = (diff.r * 2 * scale) + 'px';
+            circle.style.left = (diff.x * scale) + 'px';
+            circle.style.top = (diff.y * scale) + 'px';
+            container.appendChild(circle);
+        }
+
+        function nextLevel() {
+            document.getElementById('win-modal').style.display = 'none';
+            loadLevel(currentLevel + 1);
+        }
+
+        function restartGame() {
+            document.getElementById('end-modal').style.display = 'none';
+            loadLevel(0);
+        }
+
+        // Event Listener สำหรับการคลิก/แตะ
+        clickArea.addEventListener('mousedown', checkDifference);
+
+        // เริ่มเกม
+        loadLevel(0);
+
+    </script>
+</body>
+</html>
